@@ -1,5 +1,5 @@
 {
-  "name": "denonavr",
+  "name": "alt-denonavr",
   "version": "0.1.0",
   "description": "Control denon AVR amplifier",
   "main": "index.js",
@@ -22,5 +22,6 @@
   "homepage": "https://github.com/hisasan/denonavr#readme",
   "dependencies": {
     "debug": "^4.1.1"
-  }
+  },
+  "devDependencies": {}
 }
