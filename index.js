@@ -134,7 +134,7 @@ function connectionKeeper(f) {
 }
 
 // 公開部
-var denonavr = function() {
+var denonavr = function(address) {
     this.callback = function() {};
     this.socket   = null;
     this.tcpcon   = false;
@@ -142,8 +142,14 @@ var denonavr = function() {
     this.que      = [];
     this.run      = null;
     this.state    = {};
-    this.address  = '';
     this.model    = null;
+    if (address) {
+        this.address = address;
+        this.mdns    = true;
+    } else {
+        this.address = '';
+        this.mdns    = false;
+    }
 };
 
 // 初期化
@@ -152,21 +158,28 @@ denonavr.prototype.init = function(callback, model) {
     if (model !== undefined) {
         this.model = model;
     }
-    amxb.discover((a, info) => {
-        if (this.model != null && this.model != info.Model) {
-            return;
-        }
-        if (this.address != a && isLocalAddress(a)) {
-            console.log(`Found ${info.Model} on ${a}`);
-            this.address = a;
-            if (this.keeper == false) {
-                this.keeper = true;
-                connectionKeeper(this);
-            } else {
-                this.socket.destroy();
+    if (this.mdns) {
+        // mDNSで検索
+        this.keeper = true;
+        connectionKeeper(this);
+    } else {
+        // AMXBで検索
+        amxb.discover((a, info) => {
+            if (this.model != null && this.model != info.Model) {
+                return;
             }
-        }
-    });
+            if (this.address != a && isLocalAddress(a)) {
+                console.log(`Found ${info.Model} on ${a}`);
+                this.address = a;
+                if (this.keeper == false) {
+                    this.keeper = true;
+                    connectionKeeper(this);
+                } else {
+                    this.socket.destroy();
+                }
+            }
+        });
+    }
 };
 
 // 電源ON
