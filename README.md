@@ -12,7 +12,7 @@ Denon社製AVアンプの制御を行うモジュールです。今のところ�
 
 ```JavaScript
 const avr_factory = require('denonavr');
-const avr = new avr_factory();
+const avr = new avr_factory(hostname);
 // アンプの検索
 avr.init((state) => {
     // 状態遷移を受け取るコールバック
