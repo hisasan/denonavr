@@ -5,13 +5,7 @@ const debug          = require('debug')('denonavr');
 const amxb           = require('./amxb');
 const isLocalAddress = require('./localaddress');
 
-const port    = 23;
-
-const ON      = 0;
-const OFF     = 1;
-const SETVOL  = 2;
-const SETINP  = 3;
-const SETMUTE = 4;
+const port     = 23;
 
 // ディスパッチャー
 // キューから次のコマンドを取り出して実行
@@ -29,29 +23,10 @@ function dispatcher(f) {
 
     if (f.run) {
         // コマンド送信
-        let w = 0;
         if (f.tcpcon) {
-            switch (f.run.type) {
-                case ON:
-                    f.socket.write('PWON\r');
-                    w = 5000;
-                    break;
-                case OFF:
-                    f.socket.write('PWSTANDBY\r');
-                    w = 5000;
-                    break;
-                case SETVOL:
-                    f.socket.write('MV' + f.run.data + '\r');
-                    break;
-                case SETINP:
-                    f.socket.write('SI' + f.run.data + '\r');
-                    break;
-                case SETMUTE:
-                    f.socket.write('MU' + f.run.data + '\r');
-                    break;
-            }
+            f.socket.write(f.run.cmd + '\r');
         }
-        setTimeout(dispatcher2, w, f);
+        setTimeout(dispatcher2, f.run.wait, f);
     }
 }
 
@@ -60,8 +35,8 @@ function dispatcher2(f) {
     dispatcher(f);
 }
 
-function pushExec(f, type, data) {
-    f.que.push({ type: type, data: data });
+function pushExec(f, cmd, wait = 0) {
+    f.que.push({ cmd: cmd, wait: wait });
     if (f.run == null) {
         // ディスパッチャー停止時に起動する
         dispatcher(f);
@@ -91,30 +66,25 @@ function connectionKeeper(f) {
     f.socket.on('data', (data) => {
         let ws = data.toString().split('\r');
         for (let i = 0; i < (ws.length - 1); i++) {
-            let arg;
-            if ((arg = checkCommand(ws[i], /^MV([0-9]+)/)) != null) {
-                // マスターボリューム変更
-                debug(`denonavr: Volume=${arg}`);
-                f.state.volume = arg;
-                f.callback(f.state);
-            }
-            if ((arg = checkCommand(ws[i], /^MU(ON|OFF)/)) != null) {
-                // ミュート
-                debug(`denonavr: Mute=${arg}`);
-                f.state.muted = (arg == 'ON') ? true : false;
-                f.callback(f.state);
-            }
-            if ((arg = checkCommand(ws[i], /^SI([A-Z0-9.¥/]+)/)) != null) {
-                // 入力変更
-                debug(`denonavr: Select=${arg}`);
-                f.state.input = arg;
-                f.callback(f.state);
-            }
-            if ((arg = checkCommand(ws[i], /^ZM(ON|OFF)/)) != null) {
-                // メインゾーンパワー
-                debug(`denonavr: ZoneMain=${arg}`);
-                f.state.powerState = arg;
-                f.callback(f.state);
+            const cmds = [
+                { prop:'volume',        regs:/^MV([0-9]+)/ },
+                { prop:'muted',         regs:/^MU(ON|OFF)/, trueSymbol:'ON' },
+                { prop:'input',         regs:/^SI([A-Z0-9.¥/]+)/ },
+                { prop:'powerState',    regs:/^ZM(ON|OFF)/ },
+                { prop:'dynamicVolume', regs:/^PSDYNVOL ([A-Z]+)/ }
+            ];
+            for (let j = 0; j < cmds.length; j++) {
+                const cdef = cmds[j];
+                const arg  = checkCommand(ws[i], cdef.regs);
+                if (arg != null) {
+                    debug(`denonavr: ${cdef.prop}=${arg}`);
+                    if (cdef.hasOwnProperty('trueSymbol')) {
+                        f.state[cdef.prop] = (arg == cdef.trueSymbol) ? true : false;
+                    } else {
+                        f.state[cdef.prop] = arg;
+                    }
+                    f.callback(f.state);
+                }
             }
         }
     });
@@ -184,27 +154,32 @@ denonavr.prototype.init = function(callback, model) {
 
 // 電源ON
 denonavr.prototype.on = function() {
-    pushExec(this, ON, null);
+    pushExec(this, 'PWON', 5000);
 };
 
 // 電源OFF
 denonavr.prototype.off = function() {
-    pushExec(this, OFF, null);
+    pushExec(this, 'PWSTANDBY', 5000);
 };
 
 // ボリューム変更
 denonavr.prototype.setVolume = function(vol) {
-    pushExec(this, SETVOL, vol);
+    pushExec(this, 'MV' + vol);
 };
 
 // ボリュームミュート
 denonavr.prototype.setMute = function(mute) {
-    pushExec(this, SETMUTE, mute ? 'ON' : 'OFF');
+    pushExec(this, mute ? 'MUON' : 'MUOFF');
 };
 
 // 入力変更
 denonavr.prototype.setInput = function(inp) {
-    pushExec(this, SETINP, inp);
+    pushExec(this, 'SI' + inp);
+};
+
+// ダイナミックボリューム変更
+denonavr.prototype.setDynamicVolume = function(dv) {
+    pushExec(this, 'PSDYNVOL ' + dv);
 };
 
 module.exports = denonavr;
