@@ -1,6 +1,7 @@
 'use strict';
 
 const net            = require('net');
+const dns            = require('dns');
 const debug          = require('debug')('denonavr');
 const amxb           = require('./amxb');
 const isLocalAddress = require('./localaddress');
@@ -103,8 +104,22 @@ function connectionKeeper(f) {
     });
 }
 
+// デバイス発見
+function foundDevice(f, address) {
+    if (f.address != address && isLocalAddress(address)) {
+        debug(`denonavr: Found ${f.Model} on ${address}`);
+        f.address = address;
+        if (f.keeper == false) {
+            f.keeper = true;
+            connectionKeeper(f);
+        } else {
+            f.socket.destroy();
+        }
+    }
+}
+
 // 公開部
-var denonavr = function(address) {
+var denonavr = function() {
     this.callback = function() {};
     this.socket   = null;
     this.tcpcon   = false;
@@ -112,44 +127,30 @@ var denonavr = function(address) {
     this.que      = [];
     this.run      = null;
     this.state    = {};
-    this.model    = null;
-    if (address) {
-        this.address = address;
-        this.mdns    = true;
-    } else {
-        this.address = '';
-        this.mdns    = false;
-    }
 };
 
 // 初期化
-denonavr.prototype.init = function(callback, model) {
+denonavr.prototype.init = function(callback, model, hostname) {
     this.callback = callback;
-    if (model !== undefined) {
-        this.model = model;
-    }
-    if (this.mdns) {
+    this.model    = model;
+
+    if (hostname) {
         // mDNSで検索
-        this.keeper = true;
-        connectionKeeper(this);
-    } else {
-        // AMXBで検索
-        amxb.discover((a, info) => {
-            if (this.model != null && this.model != info.Model) {
+        dns.lookup(hostname, (err, address) => {
+            if (err) {
+                console.error(`denonavr: ${hostname} is not lookup`);
                 return;
             }
-            if (this.address != a && isLocalAddress(a)) {
-                console.log(`Found ${info.Model} on ${a}`);
-                this.address = a;
-                if (this.keeper == false) {
-                    this.keeper = true;
-                    connectionKeeper(this);
-                } else {
-                    this.socket.destroy();
-                }
-            }
-        });
+            foundDevice(this, address);
+        })
     }
+    // AMXBで検索
+    amxb.discover((address, info) => {
+        if (this.model && this.model != info.Model) {
+            return;
+        }
+        foundDevice(this, address);
+    });
 };
 
 // 電源ON
