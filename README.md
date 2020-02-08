@@ -5,6 +5,7 @@ Denon社製AVアンプの制御を行うモジュールです。今のところ�
 * 電源ON/OFF
 * マスターボリューム変更
 * 入力切換
+* ダイナミックボリューム変更
 
 ## 使用方法
 
@@ -12,16 +13,17 @@ Denon社製AVアンプの制御を行うモジュールです。今のところ�
 
 ```JavaScript
 const avr_factory = require('denonavr');
-const avr = new avr_factory(hostname);
+const avr = new avr_factory();
 // アンプの検索
 avr.init((state) => {
     // 状態遷移を受け取るコールバック
-}, 'AVR-X2400H');
+}, 'AVR-X2400H', 'denon-avr-x2400h.local');
 ```
-init()引数でモデル名を指定していますが、これは省略可能です。
-AVアンプの検索にはAMX Dynamic Device Discovery Protocol(AMX-dddp)を使用しているのですが、AVアンプの確認は定期的に機器からマルチキャスト送信されるビーコンをみています。
+init()の引数でモデル名とホスト名を指定していますが、これらは省略可能です。
 
-モデル名指定しない場合は、受け取ったビーコンの送信元を無条件にAVアンプとします。AMX-dddpに対応した機器が複数ある環境の場合は、モデル名を指定してビーコン内のモデル名チェックが必要となるでしょう。
+* hostnameを指定した場合は、mDNSでのアドレス解決を試みます。
+* modelnameを指定した場合は、AMX Device Discovery Protocolで指定modelnameのビーコン送信元をAVアンプとします。
+* modelnameの指定がない場合は、AMX Device Discovery Protocolでビーコンの送信元を無条件にAVアンプとします。
 
 ビーコンは30秒に1回くらい送信しているようなので、タイミングによってはAVアンプの認識まで時間がかかります。
 
@@ -41,6 +43,8 @@ avr.setVolume(20);
 avr.setMute(true);
 // 入力切換
 avr.setInput('SAT/CBL');
+// ダイナミックボリューム変更
+avr.setInput('MED');
 ```
 AVアンプの操作は、プロトコル的にはtelnetな無手順プロトコルなので、大層なことは何もしていません。
 入力切換に使用できる引数は、下記のような感じになってます。
@@ -58,7 +62,8 @@ state = {
     powerState: 'ON',
     volume: '35',
     muted: false,
-    input: 'SAT/CBL'
+    input: 'SAT/CBL',
+    dynamicVolume: 'MED'
 }
 ```
 
