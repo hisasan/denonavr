@@ -21,7 +21,9 @@
   },
   "homepage": "https://github.com/hisasan/denonavr#readme",
   "dependencies": {
-    "debug": "^4.1.1"
+    "amxdd": "^0.1.0",
+    "debug": "^4.1.1",
+    "lodash": "^4.17.15"
   },
   "devDependencies": {}
 }
