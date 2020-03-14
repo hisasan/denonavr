@@ -1,4 +1,4 @@
-# denonavr
+# alt-denonavr
 
 Denon社製AVアンプの制御を行うモジュールです。今のところ、下記のようなことができます。
 
@@ -12,7 +12,7 @@ Denon社製AVアンプの制御を行うモジュールです。今のところ�
 ### 初期化
 
 ```JavaScript
-const avr_factory = require('denonavr');
+const avr_factory = require('alt-denonavr');
 const avr = new avr_factory();
 // アンプの検索
 avr.init((state) => {
@@ -56,6 +56,7 @@ try {
 戻り値は設定(set)、取得(get)いずれの場合も設定値が返されます。
 
 AVアンプの操作は、プロトコル的にはtelnetな無手順プロトコルなので、大層なことは何もしていません。
+
 入力切換に使用できる引数は、下記のような感じになってます。
 
 ```
@@ -63,6 +64,8 @@ SAT/CBL, BD, DVD, AUX2, MPLAY, PHONO, CD, TUNER, TV, GAME
 ```
 他にもありそうですが、アンプによって異なるようです。
 init()のコールバックで状態遷移を受け取りながら、AVアンプを手動操作すると下記のようなオブジェクトを受け取れるので、inputプロパティをみることでお持ちのアンプの入力の指定文字列がわかります。
+
+入力切換以外のコマンドについても、操作しながら後述のinit()コールバックのunknownプロパティなどを観察することでどのようなコマンドなのか確認できます。
 
 ### init()コールバックで受け取れるオブジェクト
 
